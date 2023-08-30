@@ -65,7 +65,7 @@ const fetchPlaylistData = async () => {
     const stringified = stringify({
       header: true,
       columns: columns,
-      delimiter: " ",
+      delimiter: " | ",
     });
     response.data.tracks.items.map((item) => {
       let row = {
