@@ -85,4 +85,4 @@ const fetchPlaylistData = async () => {
   }
 };
 
-fetchPlaylistData();
+await fetchPlaylistData();
