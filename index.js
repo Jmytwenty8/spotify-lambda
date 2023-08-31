@@ -71,7 +71,7 @@ const fetchPlaylistData = async () => {
       let row = {
         song: item?.track?.name,
         artist: item?.track?.artists[0]?.name,
-        duration: `${item?.track?.duration_ms / 60000} minutes`,
+        duration: `${(item?.track?.duration_ms / 60000).toFixed(2)} minutes`,
         release_date: item?.track?.album?.release_date,
         popularity: `${item?.track?.popularity} out of 100`,
         album: item?.track?.album?.name,
