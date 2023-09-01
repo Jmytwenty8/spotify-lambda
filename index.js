@@ -1,7 +1,9 @@
 import axios from "axios";
-import fs from "node:fs";
+import aws from "aws-sdk";
 import "dotenv/config";
 import { stringify } from "csv-stringify";
+
+const s3 = new aws.S3();
 
 const clientId = process.env.CLIENT_ID;
 const clientSecret = process.env.CLIENT_SECRET;
@@ -29,8 +31,6 @@ const columns = [
   "album_type",
 ];
 
-const writableStream = fs.createWriteStream(fileName);
-
 const getAccessToken = async () => {
   try {
     const response = await axios.post(
@@ -50,9 +50,9 @@ const getAccessToken = async () => {
 };
 
 const fetchPlaylistData = async () => {
+  const csvData = [];
   try {
     const accessToken = await getAccessToken();
-
     const response = await axios.get(
       "https://api.spotify.com/v1/playlists/37i9dQZF1DXcBWIGoYBM5M",
       {
@@ -62,11 +62,6 @@ const fetchPlaylistData = async () => {
       }
     );
 
-    const stringified = stringify({
-      header: true,
-      columns: columns,
-      delimiter: " | ",
-    });
     response.data.tracks.items.map((item) => {
       let row = {
         song: item?.track?.name,
@@ -77,12 +72,47 @@ const fetchPlaylistData = async () => {
         album: item?.track?.album?.name,
         album_type: item?.track?.album?.album_type,
       };
-      stringified.write(row);
+      csvData.push(row);
     });
-    stringified.pipe(writableStream);
   } catch (error) {
     console.error("Error:", error);
   }
+
+  const csvString = await new Promise((resolve, reject) => {
+    stringify(
+      csvData,
+      { header: true, columns: columns, delimiter: " | " },
+      (err, output) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(output);
+        }
+      }
+    );
+  });
+  const uploadParams = {
+    Bucket: "spotifybucketforlambda",
+    Key: fileName,
+    Body: csvString,
+  };
+
+  const dataLocation = await s3.upload(uploadParams).promise();
+  return dataLocation.Location;
 };
 
-await fetchPlaylistData();
+export const handler = async (event, context) => {
+  try {
+    const url = await fetchPlaylistData();
+    return {
+      statusCode: 200,
+      body: "success",
+      url: url,
+    };
+  } catch (error) {
+    return {
+      statusCode: 500,
+      body: "error",
+    };
+  }
+};
